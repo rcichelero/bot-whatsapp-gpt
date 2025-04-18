@@ -1,19 +1,32 @@
 require('dotenv').config(); // Carrega variáveis do .env
 
+const fs = require('fs');
+const AdmZip = require('adm-zip');
+const path = require('path');
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const P = require('pino');
 const { OpenAI } = require("openai");
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY // 💡 Lê do .env
+  apiKey: process.env.OPENAI_API_KEY
 });
-
 const assistantId = process.env.OPENAI_ASSISTANT_ID;
 
-
 const sessionFolder = './auth_info_baileys';
+const zipPath = './auth_info_baileys.zip';
+
 const respondedMessages = new Set();
 const userThreads = new Map();
+
+async function extractZipIfExists() {
+  if (fs.existsSync(zipPath)) {
+    const zip = new AdmZip(zipPath);
+    zip.extractAllTo(sessionFolder, true);
+    console.log('✅ Sessão descompactada com sucesso.');
+  } else {
+    console.log('⚠️ Nenhum arquivo de sessão ZIP encontrado. Será necessário escanear o QR.');
+  }
+}
 
 async function startBot() {
   console.log('🔄 Iniciando o bot...');
@@ -46,16 +59,14 @@ async function startBot() {
     const sender = msg.key.remoteJid;
     const messageId = msg.key.id;
     let text = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
-text = text.trim();
-if (!text) return; // ignora mensagens vazias ou com apenas espaços
-
+    text = text.trim();
+    if (!text) return;
 
     if (respondedMessages.has(messageId)) return;
     respondedMessages.add(messageId);
 
     try {
       let threadId;
-
       if (userThreads.has(sender)) {
         threadId = userThreads.get(sender);
       } else {
@@ -64,7 +75,6 @@ if (!text) return; // ignora mensagens vazias ou com apenas espaços
         userThreads.set(sender, threadId);
       }
 
-      // Aguarda finalização do run anterior, se houver
       let lastRun;
       try {
         const runsList = await openai.beta.threads.runs.list(threadId);
@@ -118,4 +128,5 @@ if (!text) return; // ignora mensagens vazias ou com apenas espaços
   });
 }
 
-startBot();
+// ⬇️ Inicia com a descompactação antes do bot
+extractZipIfExists().then(startBot);
