@@ -1,14 +1,19 @@
+require('dotenv').config(); // Carrega variáveis do .env
+
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const P = require('pino');
-const dotenv = require('dotenv');
-dotenv.config();
 const { OpenAI } = require("openai");
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY // 💡 Lê do .env
+});
+
+const assistantId = process.env.OPENAI_ASSISTANT_ID;
+
 
 const sessionFolder = './auth_info_baileys';
 const respondedMessages = new Set();
 const userThreads = new Map();
-const assistantId = "asst_VenzPYXmbdb1rWoHQWbGZ7s5";
 
 async function startBot() {
   console.log('🔄 Iniciando o bot...');
@@ -25,7 +30,7 @@ async function startBot() {
   sock.ev.on('connection.update', (update) => {
     const { connection, lastDisconnect } = update;
     if (connection === 'close') {
-      const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut;
+      const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
       if (shouldReconnect) startBot();
     } else if (connection === 'open') {
       console.log('🤖 Bot conectado com sucesso!');
@@ -40,7 +45,10 @@ async function startBot() {
 
     const sender = msg.key.remoteJid;
     const messageId = msg.key.id;
-    const text = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
+    let text = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
+text = text.trim();
+if (!text) return; // ignora mensagens vazias ou com apenas espaços
+
 
     if (respondedMessages.has(messageId)) return;
     respondedMessages.add(messageId);
