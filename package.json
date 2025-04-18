@@ -1,5 +1,6 @@
 {
   "name": "elite-container-bot",
+  "adm-zip": "^0.5.10"
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
